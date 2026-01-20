@@ -267,10 +267,14 @@ O usa los botones del menú 👇
 🔹 /stop <#> → Detener servidor
 🔹 /stats <#> → Ver estadísticas
 
+*Gestión de Contenedores:*
+🔹 /create <tipo> <nombre> → Crear servidor
+   _Tipos:_ ssh, ftp, web
+   _Ejemplo:_ \`/create ssh mi-servidor\`
+🔹 /delete <#> → Eliminar servidor
+
 *SSH (Servidor tipo SSH):*
 🔹 /ssh <#> <comando> → Ejecutar comando
-   _Ejemplo:_ \`/ssh 1 ls -la\`
-   _Ejemplo:_ \`/ssh 1 whoami\`
 
 *FTP (Servidor tipo FTP):*
 🔹 /ftp <#> → Ver archivos
@@ -281,6 +285,79 @@ O usa los botones del menú 👇
 🔹 /logs <#> → Ver logs de acceso
     `;
         bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
+    });
+
+    // /create <type> <name> - Create new Docker container
+    bot.onText(/\/create (\w+)\s+(.+)/, async (msg, match) => {
+        const chatId = msg.chat.id;
+        const type = match[1].toLowerCase();
+        const name = match[2].trim().toLowerCase().replace(/\s+/g, '-');
+
+        if (!['ssh', 'ftp', 'web'].includes(type)) {
+            bot.sendMessage(chatId, `❌ Tipo inválido: ${type}\n\nTipos válidos: ssh, ftp, web`);
+            return;
+        }
+
+        try {
+            bot.sendMessage(chatId, `🔄 Creando servidor ${type.toUpperCase()}: *${name}*...`, { parse_mode: 'Markdown' });
+
+            const result = await dockerService.createContainer({
+                name: name,
+                type: type,
+                cpuLimit: 0.5,
+                memoryLimit: 256
+            });
+
+            await refreshServerCache();
+
+            bot.sendMessage(chatId, `
+✅ *Servidor Creado*
+
+${getTypeEmoji(type)} *Tipo:* ${type.toUpperCase()}
+📛 *Nombre:* \`${result.name}\`
+🆔 *ID:* \`${result.id.substring(0, 12)}\`
+
+Usa /servers para verlo en la lista.
+            `, { parse_mode: 'Markdown' });
+        } catch (error) {
+            bot.sendMessage(chatId, `❌ Error al crear: ${error.message}`);
+        }
+    });
+
+    // /delete <number> - Delete container
+    bot.onText(/\/delete (\d+)/, async (msg, match) => {
+        const chatId = msg.chat.id;
+        const serverNum = parseInt(match[1]);
+
+        try {
+            await refreshServerCache();
+            const server = serverCache.find(s => s.number === serverNum);
+
+            if (!server) {
+                bot.sendMessage(chatId, `❌ Servidor #${serverNum} no encontrado.`);
+                return;
+            }
+
+            // Confirm deletion
+            bot.sendMessage(chatId, `
+⚠️ *¿Eliminar servidor?*
+
+${getTypeEmoji(server.type)} *${server.name}*
+Estado: ${server.state === 'running' ? '🟢 En ejecución' : '🔴 Detenido'}
+
+_Esta acción no se puede deshacer._
+            `, {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [[
+                        { text: '✅ Sí, eliminar', callback_data: `confirmdelete_${serverNum}` },
+                        { text: '❌ Cancelar', callback_data: 'canceldelete' }
+                    ]]
+                }
+            });
+        } catch (error) {
+            bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+        }
     });
 
     // Handle text buttons
@@ -1024,6 +1101,21 @@ ${logs.substring(0, 3000) || 'Sin logs'}
                 } catch (e) {
                     bot.sendMessage(chatId, `❌ Error: ${e.message}`);
                 }
+                break;
+
+            case 'confirmdelete':
+                try {
+                    bot.sendMessage(chatId, `🗑️ Eliminando servidor *${server.name}*...`, { parse_mode: 'Markdown' });
+                    await dockerService.deleteContainer(server.name);
+                    await refreshServerCache();
+                    bot.sendMessage(chatId, `✅ Servidor eliminado correctamente.`);
+                } catch (e) {
+                    bot.sendMessage(chatId, `❌ Error al eliminar: ${e.message}`);
+                }
+                break;
+
+            case 'canceldelete':
+                bot.sendMessage(chatId, `🚫 Eliminación cancelada para *${server.name}*`, { parse_mode: 'Markdown' });
                 break;
         }
     });
