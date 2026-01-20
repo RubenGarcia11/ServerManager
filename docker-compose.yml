@@ -8,6 +8,24 @@ services:
       - "80:80"
     depends_on:
       - dashboard-server
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost/" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   # Backend API server
   dashboard-server:
@@ -18,6 +36,7 @@ services:
       - "3000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - server-data:/app/data
     depends_on:
       - ssh-target
       - ftp-target
@@ -26,6 +45,24 @@ services:
       - .env
     environment:
       - PORT=3000
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    healthcheck:
+      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3000/api/servers', r => process.exit(r.statusCode === 200 ? 0 : 1))" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
   # Target servers for testing/demo
   ssh-target:
@@ -35,6 +72,16 @@ services:
       - "2222:22"
     container_name: ssh-target
     hostname: ssh-server
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+      restart_policy:
+        condition: unless-stopped
 
   ftp-target:
     build:
@@ -45,6 +92,18 @@ services:
       - "21000-21010:21000-21010"
     container_name: ftp-target
     hostname: ftp-server
+    volumes:
+      - ftp-data:/home/ftpuser/archivos
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+      restart_policy:
+        condition: unless-stopped
 
   web-target:
     build:
@@ -54,3 +113,28 @@ services:
       - "8080:80"
     container_name: web-target
     hostname: web-server
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+      restart_policy:
+        condition: unless-stopped
+
+# Persistent volumes
+volumes:
+  server-data:
+    driver: local
+  ftp-data:
+    driver: local
+
+# Network configuration
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
