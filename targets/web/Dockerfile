@@ -7,6 +7,9 @@ RUN mkdir -p /var/run/sshd
 RUN echo 'root:password' | chpasswd
 RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 
+# Custom nginx config with enhanced logging for ngrok
+COPY nginx.conf /etc/nginx/nginx.conf
+
 # Custom index
 RUN echo "<h1>Server Manager - Web Target</h1><p>Monitoring active...</p>" > /usr/share/nginx/html/index.html
 

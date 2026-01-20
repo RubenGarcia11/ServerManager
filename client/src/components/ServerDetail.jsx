@@ -59,7 +59,7 @@ export default function ServerDetail() {
                 </div>
             </div>
 
-            <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden min-h-[600px] flex flex-col">
+            <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden h-[600px] flex flex-col">
                 {activeTab === 'terminal' && <Terminal serverName={name} />}
                 {activeTab === 'files' && <FileManager serverName={name} />}
                 {activeTab === 'web' && <WebControl serverName={name} />}

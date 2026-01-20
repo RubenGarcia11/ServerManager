@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Folder, File, Trash, Upload, ArrowUp, RefreshCw, Edit, X, Save, Download, Image, PenLine } from 'lucide-react';
+import { Folder, File, Trash, Upload, ArrowUp, RefreshCw, Edit, X, Save, Download, Image, PenLine, FolderPlus } from 'lucide-react';
 
 export default function FileManager({ serverName }) {
     const [files, setFiles] = useState([]);
@@ -21,6 +21,10 @@ export default function FileManager({ serverName }) {
     // Preview state
     const [previewImage, setPreviewImage] = useState(null);
     const [previewLoading, setPreviewLoading] = useState(false);
+
+    // Create folder state
+    const [creatingFolder, setCreatingFolder] = useState(false);
+    const [newFolderName, setNewFolderName] = useState('');
 
     const ftpCredentials = {
         host: serverName,
@@ -170,6 +174,22 @@ export default function FileManager({ serverName }) {
         }
     };
 
+    const handleCreateFolder = async () => {
+        if (!newFolderName.trim()) return;
+        const folderPath = `${path === '/' ? '' : path}/${newFolderName.trim()}`;
+        try {
+            await axios.post('/api/ftp/mkdir', {
+                ...ftpCredentials,
+                path: folderPath
+            });
+            setCreatingFolder(false);
+            setNewFolderName('');
+            fetchFiles();
+        } catch (e) {
+            alert('Error al crear carpeta: ' + (e.response?.data?.error || e.message));
+        }
+    };
+
     const isTextFile = (filename) => {
         const ext = filename.split('.').pop().toLowerCase();
         return ['txt', 'md', 'json', 'xml', 'html', 'css', 'js', 'py', 'sh', 'yaml', 'yml', 'conf', 'cfg', 'ini', 'log'].includes(ext);
@@ -295,6 +315,45 @@ export default function FileManager({ serverName }) {
         );
     }
 
+    // Create Folder Modal
+    if (creatingFolder) {
+        return (
+            <div className="flex flex-col h-full bg-slate-900 text-white items-center justify-center">
+                <div className="bg-slate-800 p-6 rounded-xl shadow-2xl max-w-md w-full mx-4">
+                    <div className="flex items-center space-x-3 mb-6">
+                        <FolderPlus className="w-6 h-6 text-emerald-400" />
+                        <h3 className="text-lg font-semibold">Nueva Carpeta</h3>
+                    </div>
+                    <p className="text-slate-400 text-sm mb-4">Ubicación: <span className="text-slate-200">{path}/</span></p>
+                    <input
+                        type="text"
+                        value={newFolderName}
+                        onChange={(e) => setNewFolderName(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
+                        className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 mb-4"
+                        placeholder="Nombre de la carpeta..."
+                        autoFocus
+                    />
+                    <div className="flex justify-end space-x-3">
+                        <button
+                            onClick={() => { setCreatingFolder(false); setNewFolderName(''); }}
+                            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={handleCreateFolder}
+                            disabled={!newFolderName.trim()}
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg disabled:opacity-50"
+                        >
+                            Crear
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-col h-full bg-slate-900 text-white p-4">
             <div className="flex items-center justify-between mb-4 p-2 bg-slate-800 rounded">
@@ -379,8 +438,11 @@ export default function FileManager({ serverName }) {
                 </table>
             </div>
 
-            <div className="mt-4 p-4 border-t border-slate-800 flex justify-end">
+            <div className="mt-4 p-4 border-t border-slate-800 flex justify-end space-x-3">
                 <input type="file" ref={fileInputRef} onChange={handleUpload} className="hidden" />
+                <button onClick={() => setCreatingFolder(true)} className="bg-emerald-600 px-4 py-2 rounded flex items-center space-x-2 hover:bg-emerald-500">
+                    <FolderPlus className="w-4 h-4" /> <span>Nueva Carpeta</span>
+                </button>
                 <button onClick={() => fileInputRef.current?.click()} className="bg-indigo-600 px-4 py-2 rounded flex items-center space-x-2 hover:bg-indigo-500">
                     <Upload className="w-4 h-4" /> <span>Subir Archivo</span>
                 </button>

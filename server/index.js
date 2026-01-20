@@ -54,21 +54,85 @@ io.on('connection', (socket) => {
   });
 });
 
+// --- Custom Servers Storage ---
+const fs = require('fs');
+const CUSTOM_SERVERS_FILE = '/tmp/custom_servers.json';
+
+const loadCustomServers = () => {
+  try {
+    if (fs.existsSync(CUSTOM_SERVERS_FILE)) {
+      return JSON.parse(fs.readFileSync(CUSTOM_SERVERS_FILE, 'utf-8'));
+    }
+  } catch (e) {
+    console.error('Error loading custom servers:', e);
+  }
+  return [];
+};
+
+const saveCustomServers = (servers) => {
+  fs.writeFileSync(CUSTOM_SERVERS_FILE, JSON.stringify(servers, null, 2));
+};
+
 // --- API Endpoints ---
 
-// Docker Container Control
+// Add custom server
+app.post('/api/servers/custom', (req, res) => {
+  try {
+    const { name, type, host, port, user, password } = req.body;
+    if (!name || !type || !host || !user || !password) {
+      return res.status(400).json({ error: 'Todos los campos son requeridos' });
+    }
+
+    const servers = loadCustomServers();
+    const newServer = {
+      id: `custom-${Date.now()}`,
+      name,
+      type,
+      host,
+      port: port || (type === 'ssh' ? 22 : type === 'ftp' ? 21 : 80),
+      user,
+      password,
+      isCustom: true,
+      state: 'unknown',
+      status: 'Custom Server'
+    };
+    servers.push(newServer);
+    saveCustomServers(servers);
+    res.json(newServer);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Delete custom server
+app.delete('/api/servers/custom/:id', (req, res) => {
+  try {
+    let servers = loadCustomServers();
+    servers = servers.filter(s => s.id !== req.params.id);
+    saveCustomServers(servers);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Docker Container Control + Custom Servers
 app.get('/api/servers', async (req, res) => {
   try {
     const containers = await dockerService.listContainers();
     // Enrich with Type based on name
-    const mapped = containers.map(c => ({
+    const dockerServers = containers.map(c => ({
       id: c.Id,
       name: c.Names[0].replace('/', ''),
       state: c.State,
       status: c.Status,
-      type: c.Names[0].includes('ssh') ? 'ssh' : c.Names[0].includes('ftp') ? 'ftp' : 'web'
+      type: c.Names[0].includes('ssh') ? 'ssh' : c.Names[0].includes('ftp') ? 'ftp' : 'web',
+      isCustom: false
     }));
-    res.json(mapped);
+
+    // Add custom servers
+    const customServers = loadCustomServers();
+    res.json([...dockerServers, ...customServers]);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -204,6 +268,48 @@ app.post('/api/web/logs', async (req, res) => {
   try {
     const logs = await webService.getAccessLogs(host, 22, 'root', 'password');
     res.json({ logs });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// FTP Create Directory
+app.post('/api/ftp/mkdir', async (req, res) => {
+  const { host, port, user, password, path } = req.body;
+  try {
+    await ftpService.createDirectory(host, port || 21, user, password, path);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Web - List HTML files from FTP server for deployment
+app.post('/api/web/ftp-files', async (req, res) => {
+  const { ftpHost } = req.body;
+  try {
+    // List files from FTP root directory recursively looking for HTML files
+    const files = await ftpService.listFiles(ftpHost, 21, 'ftpuser', 'ftp123', '/archivos');
+    const htmlFiles = files.filter(f => !f.isDirectory && f.name.endsWith('.html'));
+    res.json(htmlFiles);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Web - Deploy HTML from FTP to web server
+app.post('/api/web/deploy', async (req, res) => {
+  const { ftpHost, webHost, filePath, fileName } = req.body;
+  try {
+    // Download file from FTP
+    const localPath = await ftpService.downloadToPath(ftpHost, 21, 'ftpuser', 'ftp123', filePath);
+
+    // Copy to web server via SSH/SCP
+    const fs = require('fs');
+    const fileContent = fs.readFileSync(localPath, 'utf-8');
+
+    // Use SSH to write the file to nginx html folder
+    await sshService.executeCommand(webHost, 22, 'root', 'password',
+      `cat > /usr/share/nginx/html/index.html << 'HTMLEOF'
+${fileContent}
+HTMLEOF`);
+
+    fs.unlinkSync(localPath); // cleanup
+    res.json({ success: true, message: `Deployed ${fileName} to web server` });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

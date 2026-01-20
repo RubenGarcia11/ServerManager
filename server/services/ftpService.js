@@ -96,5 +96,15 @@ const renameFile = async (host, port, user, password, oldPath, newPath) => {
     }
 };
 
-module.exports = { listFiles, uploadFile, deleteFile, downloadFile, saveFile, downloadToPath, renameFile };
+// Create a directory on the FTP server
+const createDirectory = async (host, port, user, password, remotePath) => {
+    const client = await connect(host, port, user, password);
+    try {
+        await client.ensureDir(remotePath);
+    } finally {
+        client.close();
+    }
+};
+
+module.exports = { listFiles, uploadFile, deleteFile, downloadFile, saveFile, downloadToPath, renameFile, createDirectory };
 

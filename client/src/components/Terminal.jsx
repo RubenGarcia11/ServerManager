@@ -6,9 +6,12 @@ import 'xterm/css/xterm.css';
 
 export default function TerminalComponent({ serverName }) {
     const terminalRef = useRef(null);
+    const terminalContainerRef = useRef(null);
     const socketRef = useRef(null);
 
     useEffect(() => {
+        if (!terminalContainerRef.current) return;
+
         const term = new Terminal({
             cursorBlink: true,
             theme: {
@@ -22,8 +25,12 @@ export default function TerminalComponent({ serverName }) {
 
         const fitAddon = new FitAddon();
         term.loadAddon(fitAddon);
-        term.open(terminalRef.current);
-        fitAddon.fit();
+        term.open(terminalContainerRef.current);
+
+        // Initial fit with small delay to ensure container is rendered
+        const initialFitTimeout = setTimeout(() => {
+            fitAddon.fit();
+        }, 100);
 
         const socket = io();
         socketRef.current = socket;
@@ -48,15 +55,42 @@ export default function TerminalComponent({ serverName }) {
             socket.emit('input', data);
         });
 
-        const handleResize = () => fitAddon.fit();
+        // Debounced resize handler
+        let resizeTimeout;
+        const handleResize = () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                try {
+                    fitAddon.fit();
+                } catch (e) {
+                    // Ignore fit errors during cleanup
+                }
+            }, 50);
+        };
+
+        // Use ResizeObserver to detect container size changes
+        const resizeObserver = new ResizeObserver(handleResize);
+        resizeObserver.observe(terminalContainerRef.current);
+
         window.addEventListener('resize', handleResize);
 
         return () => {
+            clearTimeout(initialFitTimeout);
+            clearTimeout(resizeTimeout);
+            resizeObserver.disconnect();
             socket.disconnect();
             term.dispose();
             window.removeEventListener('resize', handleResize);
         };
     }, [serverName]);
 
-    return <div ref={terminalRef} className="h-full w-full" />;
+    return (
+        <div ref={terminalRef} className="h-full w-full flex-1 overflow-hidden">
+            <div
+                ref={terminalContainerRef}
+                className="h-full w-full"
+                style={{ minHeight: '400px' }}
+            />
+        </div>
+    );
 }
