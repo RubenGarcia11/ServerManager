@@ -75,3 +75,20 @@
 .light-mode ::-webkit-scrollbar-thumb {
   background-color: #cbd5e1;
 }
+
+/* Settings dropdown light mode */
+.light-mode .settings-dropdown {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+.light-mode .settings-dropdown select {
+  background-color: #f1f5f9 !important;
+  color: #1e293b !important;
+  border-color: #cbd5e1 !important;
+}
+
+.light-mode .settings-dropdown select option {
+  background-color: #ffffff;
+  color: #1e293b;
+}
