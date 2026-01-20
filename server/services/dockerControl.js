@@ -110,8 +110,9 @@ const createContainer = async (options) => {
     const image = imageMap[type];
     if (!image) throw new Error(`Invalid server type: ${type}`);
 
-    // Add -target suffix if not present so it appears in the container list
-    const containerName = name.includes('target') ? name : `${name}-target`;
+    // Add type and -target suffix for proper detection (e.g., mi-servidor-ssh-target)
+    const baseName = name.replace(/-target$/, '').replace(/-ssh$/, '').replace(/-ftp$/, '').replace(/-web$/, '');
+    const containerName = `${baseName}-${type}-target`;
 
     const containerConfig = {
         Image: image,

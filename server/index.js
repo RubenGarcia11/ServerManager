@@ -120,15 +120,23 @@ app.delete('/api/servers/custom/:id', (req, res) => {
 app.get('/api/servers', async (req, res) => {
   try {
     const containers = await dockerService.listContainers();
-    // Enrich with Type based on name
-    const dockerServers = containers.map(c => ({
-      id: c.Id,
-      name: c.Names[0].replace('/', ''),
-      state: c.State,
-      status: c.Status,
-      type: c.Names[0].includes('ssh') ? 'ssh' : c.Names[0].includes('ftp') ? 'ftp' : 'web',
-      isCustom: false
-    }));
+    // Enrich with Type based on name or image
+    const dockerServers = containers.map(c => {
+      const name = c.Names[0].replace('/', '');
+      const image = c.Image || '';
+      let type = 'web';
+      if (name.includes('ssh') || image.includes('ssh')) type = 'ssh';
+      else if (name.includes('ftp') || image.includes('ftp')) type = 'ftp';
+      else if (name.includes('web') || image.includes('web')) type = 'web';
+      return {
+        id: c.Id,
+        name,
+        state: c.State,
+        status: c.Status,
+        type,
+        isCustom: false
+      };
+    });
 
     // Add custom servers
     const customServers = loadCustomServers();
