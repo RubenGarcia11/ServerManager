@@ -287,6 +287,29 @@ O usa los botones del menú 👇
         bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
     });
 
+    // /create help command (without args)
+    bot.onText(/\/create$/, (msg) => {
+        const chatId = msg.chat.id;
+        bot.sendMessage(chatId, `
+🆕 *Crear Nuevo Servidor*
+
+Uso: \`/create <tipo> <nombre>\`
+
+*Tipos disponibles:*
+🔐 \`ssh\` - Servidor SSH (Ubuntu Minimal)
+📁 \`ftp\` - Servidor FTP
+🌐 \`web\` - Servidor Web (Nginx)
+
+*Ejemplos:*
+• \`/create ssh mi-servidor-linux\`
+• \`/create ftp archivos-personales\`
+• \`/create web mi-pagina-web\`
+
+Los servidores se crean con recursos limitados (0.5 CPU, 256MB RAM).
+Puedes ajustar los recursos desde el Dashboard web.
+        `, { parse_mode: 'Markdown' });
+    });
+
     // /create <type> <name> - Create new Docker container
     bot.onText(/\/create (\w+)\s+(.+)/, async (msg, match) => {
         const chatId = msg.chat.id;
