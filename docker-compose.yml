@@ -1,0 +1,56 @@
+services:
+  # Frontend - React app served by nginx
+  dashboard-client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - dashboard-server
+
+  # Backend API server
+  dashboard-server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    expose:
+      - "3000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - ssh-target
+      - ftp-target
+      - web-target
+    env_file:
+      - .env
+    environment:
+      - PORT=3000
+
+  # Target servers for testing/demo
+  ssh-target:
+    build:
+      context: ./targets/ssh
+    ports:
+      - "2222:22"
+    container_name: ssh-target
+    hostname: ssh-server
+
+  ftp-target:
+    build:
+      context: ./targets/ftp
+    ports:
+      - "2223:22"
+      - "2121:21"
+      - "21000-21010:21000-21010"
+    container_name: ftp-target
+    hostname: ftp-server
+
+  web-target:
+    build:
+      context: ./targets/web
+    ports:
+      - "2224:22"
+      - "8080:80"
+    container_name: web-target
+    hostname: web-server
