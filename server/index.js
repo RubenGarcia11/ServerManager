@@ -167,6 +167,61 @@ app.get('/api/servers/:name/stats', async (req, res) => {
   }
 });
 
+// Container inspection - get detailed info and resources
+app.get('/api/servers/:name/inspect', async (req, res) => {
+  try {
+    const info = await dockerService.inspectContainer(req.params.name);
+    res.json(info);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Update container resources
+app.put('/api/servers/:name/resources', async (req, res) => {
+  try {
+    const { cpuLimit, memoryLimit, memoryReservation } = req.body;
+    const result = await dockerService.updateContainerResources(req.params.name, {
+      cpuLimit, memoryLimit, memoryReservation
+    });
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Restart container
+app.post('/api/servers/:name/restart', async (req, res) => {
+  try {
+    const result = await dockerService.restartContainer(req.params.name);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get container logs
+app.get('/api/servers/:name/logs', async (req, res) => {
+  try {
+    const logs = await dockerService.getContainerLogs(req.params.name, req.query.tail || 100);
+    res.json({ logs });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Create new Docker container
+app.post('/api/servers/docker/create', async (req, res) => {
+  try {
+    const { name, type, cpuLimit, memoryLimit } = req.body;
+    if (!name || !type) {
+      return res.status(400).json({ error: 'Name and type are required' });
+    }
+    const result = await dockerService.createContainer({ name, type, cpuLimit, memoryLimit });
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Delete Docker container
+app.delete('/api/servers/docker/:name', async (req, res) => {
+  try {
+    const result = await dockerService.deleteContainer(req.params.name);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // FTP Endpoints
 app.post('/api/ftp/list', async (req, res) => {
   const { host, port, user, password, path } = req.body;

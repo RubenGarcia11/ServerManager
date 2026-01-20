@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Terminal as TermIcon, FileText, Activity, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Terminal as TermIcon, FileText, Activity, BarChart3, Cpu } from 'lucide-react';
 import Terminal from './Terminal';
 import FileManager from './FileManager';
 import WebControl from './WebControl';
 import StatsView from './StatsView';
+import ResourcesPanel from './ResourcesPanel';
 
 export default function ServerDetail() {
     const { name } = useParams();
@@ -29,7 +30,7 @@ export default function ServerDetail() {
 
             <div className="flex items-center justify-between flex-wrap gap-4">
                 <h1 className="text-3xl font-bold">{server.name}</h1>
-                <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-800">
+                <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-800 flex-wrap">
                     {server.type === 'ssh' && (
                         <button onClick={() => setActiveTab('terminal')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'terminal' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}>
                             <div className="flex items-center space-x-2">
@@ -56,6 +57,11 @@ export default function ServerDetail() {
                             <BarChart3 className="w-4 h-4" /> <span>Estadísticas</span>
                         </div>
                     </button>
+                    <button onClick={() => setActiveTab('resources')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'resources' ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}>
+                        <div className="flex items-center space-x-2">
+                            <Cpu className="w-4 h-4" /> <span>Recursos</span>
+                        </div>
+                    </button>
                 </div>
             </div>
 
@@ -64,7 +70,9 @@ export default function ServerDetail() {
                 {activeTab === 'files' && <FileManager serverName={name} />}
                 {activeTab === 'web' && <WebControl serverName={name} />}
                 {activeTab === 'stats' && <StatsView serverName={name} />}
+                {activeTab === 'resources' && <ResourcesPanel serverName={name} />}
             </div>
         </div>
     );
 }
+
