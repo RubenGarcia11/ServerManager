@@ -386,7 +386,7 @@ ${output.substring(0, 3000) || '(sin salida)'}
     bot.onText(/\/ftp (\d+)(?:\s+(.*))?/, async (msg, match) => {
         const chatId = msg.chat.id;
         const serverNum = parseInt(match[1]);
-        const ftpPath = match[2] || '/';
+        const ftpPath = match[2] || '/archivos';
 
         try {
             await refreshServerCache();
@@ -568,7 +568,7 @@ ${output.substring(0, 3000) || '(sin salida)'}
 
             await downloadTelegramFile(photo.file_id, localPath);
 
-            const remotePath = `${session.ftpPath}/photo_${Date.now()}.jpg`;
+            const remotePath = `${session.ftpPath === '/' ? '/archivos' : session.ftpPath}/photo_${Date.now()}.jpg`;
             await ftpService.uploadFile(server.name, 21, 'ftpuser', 'ftp123', localPath, remotePath);
 
             // Cleanup
@@ -605,7 +605,7 @@ ${output.substring(0, 3000) || '(sin salida)'}
 
             await downloadTelegramFile(msg.document.file_id, localPath);
 
-            const remotePath = `${session.ftpPath}/${msg.document.file_name}`;
+            const remotePath = `${session.ftpPath === '/' ? '/archivos' : session.ftpPath}/${msg.document.file_name}`;
             await ftpService.uploadFile(server.name, 21, 'ftpuser', 'ftp123', localPath, remotePath);
 
             // Cleanup
