@@ -5,8 +5,10 @@ const getContainer = (name) => docker.getContainer(name);
 
 const listContainers = async () => {
     const containers = await docker.listContainers({ all: true });
-    // Filter only our targets
-    return containers.filter(c => c.Names.some(n => n.includes('target')));
+    // Filter our managed containers (targets or servermanager-*)
+    return containers.filter(c => c.Names.some(n =>
+        n.includes('target') || n.includes('servermanager') || n.includes('-ssh') || n.includes('-ftp') || n.includes('-web')
+    ));
 };
 
 const startContainer = async (name) => {
@@ -57,10 +59,9 @@ const updateContainerResources = async (name, resources) => {
 
     const updateConfig = {};
 
-    // CPU limit (in CPU quota - 100000 = 1 CPU)
+    // CPU limit using NanoCpus (1 CPU = 1e9 nanocpus)
     if (resources.cpuLimit !== undefined) {
-        updateConfig.CpuQuota = Math.floor(resources.cpuLimit * 100000);
-        updateConfig.CpuPeriod = 100000;
+        updateConfig.NanoCpus = Math.floor(resources.cpuLimit * 1e9);
     }
 
     // Memory limit (in bytes)
@@ -109,16 +110,19 @@ const createContainer = async (options) => {
     const image = imageMap[type];
     if (!image) throw new Error(`Invalid server type: ${type}`);
 
+    // Add -target suffix if not present so it appears in the container list
+    const containerName = name.includes('target') ? name : `${name}-target`;
+
     const containerConfig = {
         Image: image,
-        name: name,
+        name: containerName,
         Hostname: name,
         HostConfig: { RestartPolicy: { Name: 'unless-stopped' } }
     };
 
+    // Use NanoCpus for CPU limit (1 CPU = 1e9 nanocpus)
     if (cpuLimit) {
-        containerConfig.HostConfig.CpuQuota = Math.floor(cpuLimit * 100000);
-        containerConfig.HostConfig.CpuPeriod = 100000;
+        containerConfig.HostConfig.NanoCpus = Math.floor(cpuLimit * 1e9);
     }
     if (memoryLimit) {
         containerConfig.HostConfig.Memory = memoryLimit * 1024 * 1024;
@@ -137,7 +141,7 @@ const createContainer = async (options) => {
 
     const container = await docker.createContainer(containerConfig);
     await container.start();
-    return { success: true, name, type, id: container.id };
+    return { success: true, name: containerName, type, id: container.id };
 };
 
 // Delete a container
