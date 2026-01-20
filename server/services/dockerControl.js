@@ -117,8 +117,11 @@ const createContainer = async (options) => {
     const containerConfig = {
         Image: image,
         name: containerName,
-        Hostname: name,
-        HostConfig: { RestartPolicy: { Name: 'unless-stopped' } }
+        Hostname: containerName,
+        HostConfig: {
+            RestartPolicy: { Name: 'unless-stopped' },
+            NetworkMode: 'servermanager_default'
+        }
     };
 
     // Use NanoCpus for CPU limit (1 CPU = 1e9 nanocpus)
