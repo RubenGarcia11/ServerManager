@@ -5,9 +5,9 @@ const getContainer = (name) => docker.getContainer(name);
 
 const listContainers = async () => {
     const containers = await docker.listContainers({ all: true });
-    // Filter our managed containers (targets or servermanager-*)
+    // Filter only target containers (excludes dashboard-server and dashboard-client)
     return containers.filter(c => c.Names.some(n =>
-        n.includes('target') || n.includes('servermanager') || n.includes('-ssh') || n.includes('-ftp') || n.includes('-web')
+        n.includes('target') && !n.includes('dashboard')
     ));
 };
 
