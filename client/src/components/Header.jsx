@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, createContext, useContext } from 'react';
-import { Server, Settings, Moon, Sun, Bell, BellOff, Languages, Info } from 'lucide-react';
+import { Server, Settings, Moon, Sun, Bell, BellOff, Languages, Info, Bot } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 // Language context for translations
@@ -25,7 +25,8 @@ const translations = {
         noHtmlFiles: 'No hay archivos HTML en el servidor FTP. Sube archivos .html al servidor FTP para poder desplegarlos aquí.',
         openSite: 'Abrir Sitio',
         active: 'Activo',
-        unknown: 'Desconocido'
+        unknown: 'Desconocido',
+        telegramBot: 'Bot Telegram'
     },
     en: {
         systemOnline: 'System Online',
@@ -46,7 +47,8 @@ const translations = {
         noHtmlFiles: 'No HTML files on FTP server. Upload .html files to the FTP server to deploy them here.',
         openSite: 'Open Site',
         active: 'Active',
-        unknown: 'Unknown'
+        unknown: 'Unknown',
+        telegramBot: 'Telegram Bot'
     }
 };
 
@@ -105,6 +107,15 @@ export default function Header() {
                 </Link>
 
                 <div className="flex items-center space-x-4">
+                    {/* Telegram Bot Link */}
+                    <Link
+                        to="/telegram"
+                        className="flex items-center space-x-2 px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg border border-blue-500/20 transition-colors group"
+                    >
+                        <Bot className="w-4 h-4 text-blue-400 group-hover:text-blue-300" />
+                        <span className="text-xs font-medium text-blue-400 group-hover:text-blue-300">{t('telegramBot')}</span>
+                    </Link>
+
                     <div className="flex items-center space-x-2 px-3 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/20">
                         <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
                         <span className="text-xs font-medium text-emerald-400">{t('systemOnline')}</span>

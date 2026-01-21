@@ -376,6 +376,72 @@ HTMLEOF`);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ========================================
+// Telegram Bot API Endpoints
+// ========================================
+
+// Get bot status and info
+app.get('/api/telegram/status', async (req, res) => {
+  try {
+    const info = await telegramBot.getBotInfo();
+    res.json(info);
+  } catch (e) {
+    res.json({ active: false, error: e.message });
+  }
+});
+
+// Get chat logs
+app.get('/api/telegram/logs', (req, res) => {
+  try {
+    const logs = telegramBot.getLogs();
+    const limit = parseInt(req.query.limit) || 100;
+    const userId = req.query.userId;
+
+    let filteredLogs = logs;
+    if (userId) {
+      filteredLogs = logs.filter(l => l.userId.toString() === userId);
+    }
+
+    res.json(filteredLogs.slice(0, limit));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get active chats (unique users who messaged the bot)
+app.get('/api/telegram/chats', (req, res) => {
+  try {
+    const chats = telegramBot.getActiveChats();
+    res.json(chats);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Send message to a chat
+app.post('/api/telegram/send', async (req, res) => {
+  const { chatId, message } = req.body;
+  if (!chatId || !message) {
+    return res.status(400).json({ error: 'chatId and message are required' });
+  }
+  try {
+    await telegramBot.sendMessage(chatId, message);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Clear all logs
+app.delete('/api/telegram/logs', (req, res) => {
+  try {
+    telegramBot.clearLogs();
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Initialize Telegram Bot (only if token is provided)
 if (process.env.TELEGRAM_BOT_TOKEN) {
   telegramBot.initialize();

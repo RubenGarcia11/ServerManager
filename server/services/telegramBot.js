@@ -13,6 +13,50 @@ let bot = null;
 let serverCache = []; // Cache for numbered server list
 let userSessions = {}; // Track user sessions for interactive mode
 
+// Chat logs storage
+let chatLogs = [];
+const MAX_LOGS = 1000;
+
+/**
+ * Add a log entry for dashboard viewing
+ */
+const addLog = (msg, responseText, isCommand = false) => {
+    if (!msg || !msg.from) return;
+    const log = {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        userId: msg.from.id,
+        userName: msg.from.username || null,
+        firstName: msg.from.first_name || 'Unknown',
+        lastName: msg.from.last_name || '',
+        chatId: msg.chat.id,
+        chatType: msg.chat.type,
+        message: msg.text || '[media]',
+        isCommand,
+        response: responseText
+    };
+    chatLogs.unshift(log);
+    if (chatLogs.length > MAX_LOGS) chatLogs.pop();
+};
+
+/**
+ * Get bot info for dashboard
+ */
+const getBotInfo = async () => {
+    if (!bot) return { active: false, username: null };
+    try {
+        const me = await bot.getMe();
+        return {
+            active: true,
+            username: me.username,
+            firstName: me.first_name,
+            id: me.id
+        };
+    } catch (e) {
+        return { active: true, username: 'Bot', error: e.message };
+    }
+};
+
 /**
  * Refresh the server cache and return the list
  */
@@ -253,6 +297,7 @@ O usa los botones del menú 👇
             parse_mode: 'Markdown',
             reply_markup: createMainKeyboard()
         });
+        addLog(msg, 'Mensaje de bienvenida enviado', true);
     });
 
     // /help command
@@ -285,6 +330,7 @@ O usa los botones del menú 👇
 🔹 /logs <#> → Ver logs de acceso
     `;
         bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
+        addLog(msg, 'Ayuda de comandos', true);
     });
 
     // /create help command (without args)
@@ -342,8 +388,10 @@ ${getTypeEmoji(type)} *Tipo:* ${type.toUpperCase()}
 
 Usa /servers para verlo en la lista.
             `, { parse_mode: 'Markdown' });
+            addLog(msg, `Servidor creado: ${type}/${name}`, true);
         } catch (error) {
             bot.sendMessage(chatId, `❌ Error al crear: ${error.message}`);
+            addLog(msg, `Error creando servidor: ${error.message}`, true);
         }
     });
 
@@ -378,6 +426,7 @@ _Esta acción no se puede deshacer._
                     ]]
                 }
             });
+            addLog(msg, `Solicitud eliminar: ${server.name}`, true);
         } catch (error) {
             bot.sendMessage(chatId, `❌ Error: ${error.message}`);
         }
@@ -389,6 +438,11 @@ _Esta acción no se puede deshacer._
         const text = msg.text;
 
         if (!text) return;
+
+        // Log all incoming messages (except commands which are logged separately)
+        if (!text.startsWith('/')) {
+            addLog(msg, 'Mensaje recibido', false);
+        }
 
         if (text === '📋 Lista de Servidores') {
             const servers = await refreshServerCache();
@@ -425,6 +479,7 @@ _Esta acción no se puede deshacer._
                 parse_mode: 'Markdown',
                 reply_markup: { inline_keyboard: inlineKeyboard }
             });
+            addLog(msg, `Lista de ${servers.length} servidores`, true);
         } catch (error) {
             bot.sendMessage(chatId, `❌ Error: ${error.message}`);
         }
@@ -477,8 +532,10 @@ ${output.substring(0, 3000) || '(sin salida)'}
             `;
 
             bot.sendMessage(chatId, response, { parse_mode: 'Markdown' });
+            addLog(msg, `SSH ejecutado: ${command.substring(0, 50)}`, true);
         } catch (error) {
             bot.sendMessage(chatId, `❌ Error SSH: ${error.message}`);
+            addLog(msg, `Error SSH: ${error.message}`, true);
         }
     });
 
@@ -593,8 +650,10 @@ ${output.substring(0, 3000) || '(sin salida)'}
                 parse_mode: 'Markdown',
                 reply_markup: { inline_keyboard: inlineKeyboard }
             });
+            addLog(msg, `FTP listado: ${ftpPath}`, true);
         } catch (error) {
             bot.sendMessage(chatId, `❌ Error FTP: ${error.message}`);
+            addLog(msg, `Error FTP: ${error.message}`, true);
         }
     });
 
@@ -792,8 +851,10 @@ ${statusIcon} *Estado Nginx:* ${status.status}
                 parse_mode: 'Markdown',
                 reply_markup: { inline_keyboard: buttons }
             });
+            addLog(msg, `Web status: ${status.status}`, true);
         } catch (error) {
             bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+            addLog(msg, `Error web: ${error.message}`, true);
         }
     });
 
@@ -878,11 +939,14 @@ ${logs.substring(0, 3500) || 'Sin logs disponibles'}
                 parse_mode: 'Markdown',
                 reply_markup: createServerKeyboard(server)
             });
+            addLog(msg, `Servidor #${server.number} iniciado`, true);
         } catch (error) {
             if (error.message.includes('already started')) {
                 bot.sendMessage(chatId, `⚠️ El servidor ya está en ejecución.`);
+                addLog(msg, 'Servidor ya en ejecución', true);
             } else {
                 bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+                addLog(msg, `Error iniciando: ${error.message}`, true);
             }
         }
     });
@@ -908,11 +972,14 @@ ${logs.substring(0, 3500) || 'Sin logs disponibles'}
             bot.sendMessage(chatId, `✅ Servidor *#${server.number}* detenido.`, {
                 parse_mode: 'Markdown'
             });
+            addLog(msg, `Servidor #${server.number} detenido`, true);
         } catch (error) {
             if (error.message.includes('not running')) {
                 bot.sendMessage(chatId, `⚠️ El servidor ya está detenido.`);
+                addLog(msg, 'Servidor ya detenido', true);
             } else {
                 bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+                addLog(msg, `Error deteniendo: ${error.message}`, true);
             }
         }
     });
@@ -1267,4 +1334,31 @@ ${logs.substring(0, 3000) || 'Sin logs'}
     });
 };
 
-module.exports = { initialize };
+module.exports = {
+    initialize,
+    getLogs: () => chatLogs,
+    getBotInfo,
+    clearLogs: () => { chatLogs = []; },
+    sendMessage: async (chatId, text) => {
+        if (bot) {
+            await bot.sendMessage(chatId, text);
+            return true;
+        }
+        return false;
+    },
+    getActiveChats: () => {
+        const chats = {};
+        chatLogs.forEach(log => {
+            if (!chats[log.chatId]) {
+                chats[log.chatId] = {
+                    chatId: log.chatId,
+                    userName: log.userName,
+                    firstName: log.firstName,
+                    lastName: log.lastName,
+                    lastMessage: log.timestamp
+                };
+            }
+        });
+        return Object.values(chats);
+    }
+};

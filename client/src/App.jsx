@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Routes, Route, Link, useParams } from 'react-r
 import Header, { LanguageProvider } from './components/Header';
 import ServerList from './components/ServerList';
 import ServerDetail from './components/ServerDetail';
+import TelegramBotPanel from './components/TelegramBotPanel';
 
 function App() {
     return (
@@ -16,6 +17,7 @@ function App() {
                         <Routes>
                             <Route path="/" element={<ServerList />} />
                             <Route path="/server/:name" element={<ServerDetail />} />
+                            <Route path="/telegram" element={<TelegramBotPanel />} />
                         </Routes>
                     </main>
                 </div>
